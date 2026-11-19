@@ -1,7 +1,7 @@
-import {fetchSource,sourceState,example} from './core.mjs';
+import {fetchSource,sourceState,example,groupSubwayAlerts} from './core.mjs';
 const get=id=>document.getElementById(id);
 const mode=new URLSearchParams(location.search).get('demo')==='1';
-const refresh=get('refresh'),local=get('local');
+const refresh=get('refresh');
 const clock=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
 const sample=example();
 const cards={subway:{data:null,error:false},traffic:{data:null,error:false}};
@@ -23,21 +23,34 @@ function render(kind){
  if(!data)return;
  if(state==='demo')node(out,'p','Sample readings only. Do not use these values to plan travel.','content-line');
  else node(out,'p','Latest source timestamp: '+clock.format(data.stamp)+(state==='stale'?'. This view may be outdated.':'.'),'content-line');
- const rows=kind==='subway'&&local.checked?data.items.filter(a=>a.local):data.items;
- if(kind==='subway'&&!rows.length){node(out,'p',local.checked?'No matching island station alerts in this feed. Uncheck the filter for F and M route-wide alerts.':'No matching F or M alerts within the next 12 hours. This does not verify train arrivals or normal service.','content-line');return;}
- for(const a of rows.slice(0,kind==='traffic'?8:12)){
-  const el=node(out,'article','','item');
-  if(kind==='subway'){
-   node(el,'p',[a.local?'Island station':'Route-wide',a.routes.join(' / '),a.active?'Active':'Planned '+clock.format(a.startsAt)].filter(Boolean).join(' · '));
-   node(el,'h3',a.title);
-   if(a.description)node(el,'p',a.description);
-  }else{
-   node(el,'h3',a.name);
-   node(el,'strong',a.speed.toFixed(1)+' mph','metric');
-   node(el,'p',(a.seconds?Math.round(a.seconds)+' s on this link · ':'')+clock.format(a.stamp));
+ if(kind==='subway'){
+  const groups=groupSubwayAlerts(data.items);
+  const sections=[
+    ['Roosevelt Island station',groups.station,'No matching station-specific alerts reported for the next 12 hours.'],
+    ['F / M route context',groups.route,'No other F or M alerts reported for the next 12 hours.']
+  ];
+  for(const [label,rows,none] of sections){
+   const group=node(out,'section','','alert-group');
+   node(group,'h3',label);
+   if(!rows.length)node(group,'p',none,'content-line');
+   for(const a of rows.slice(0,6)){
+    const el=node(group,'article','','item');
+    node(el,'p',[a.routes.join(' / '),a.active?'Active in feed':'Planned '+clock.format(a.startsAt)].filter(Boolean).join(' · '));
+    node(el,'h4',a.title);
+    if(a.description)node(el,'p',a.description);
+   }
+   if(rows.length>6)node(group,'p','Showing 6 of '+rows.length+' alerts. Check MTA for the complete list.','content-line');
   }
+  node(out,'p','No matching alert does not verify train arrivals or normal service.','content-line');
+  return;
  }
- if(rows.length>12)node(out,'p','Showing the first 12 matching alerts. Check MTA for the full feed.','content-line');
+ for(const a of data.items.slice(0,8)){
+  const el=node(out,'article','','item');
+  node(el,'h3',a.name);
+  node(el,'strong',a.speed.toFixed(1)+' mph','metric');
+  const old=!data.sample&&sourceState({kind:'traffic',stamp:a.stamp},Date.now())==='stale';
+  node(el,'p',(a.seconds?Math.round(a.seconds)+' s on this link · ':'')+clock.format(a.stamp)+(old?' · Older reading':''));
+ }
 }
 async function reload(){
  if(mode||running)return;
@@ -52,7 +65,6 @@ async function reload(){
  running=false;refresh.disabled=false;
  timer=setTimeout(()=>{if(!document.hidden)reload();},90000);
 }
-local.addEventListener('change',()=>render('subway'));
 refresh.addEventListener('click',reload);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!mode)reload();});
 if(mode){refresh.disabled=true;get('demo-link').href='./';get('demo-link').textContent='Back to live feeds';}

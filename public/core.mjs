@@ -95,8 +95,13 @@ export async function fetchSource(kind,now=Date.now(),fetcher=fetch){
 export function sourceState(snapshot,now=Date.now(),failed=false){
  if(!snapshot)return failed?'unavailable':'loading';
  if(snapshot.sample)return 'demo';
- if(!snapshot.stamp)return 'no-data';
+ if(!snapshot.stamp)return failed?'unavailable':'no-data';
  return (now-snapshot.stamp>MAX_AGE[snapshot.kind]||failed)?'stale':'live';
+}
+export function groupSubwayAlerts(items){
+ const station=[],route=[];
+ for(const item of items)(item.local?station:route).push(item);
+ return {station,route};
 }
 export function example(now=Date.now()){
  return {

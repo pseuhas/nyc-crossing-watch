@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {alertSnapshot,dotTimestamp,roadQuery,roadSnapshot,fetchSource,sourceState,example} from '../public/core.mjs';
+import {alertSnapshot,dotTimestamp,roadQuery,roadSnapshot,fetchSource,sourceState,example,groupSubwayAlerts} from '../public/core.mjs';
 const now=Date.parse('2026-11-19T18:30:00Z'), sec=now/1000;
 const tr=text=>({translation:[{language:'en-html',text:'<b>Ignore HTML</b>'},{language:'en',text}]});
 const a=(id,route,stop,start,end,more={})=>({id,alert:{header_text:tr('Example '+id),description_text:tr('Example description'),informed_entity:[{route_id:route,stop_id:stop}],active_period:[{start,end}],...more}});
@@ -42,4 +42,17 @@ test('network contracts use omitted credentials and propagate vendor failure',as
  await assert.rejects(fetchSource('traffic',now,async()=>({ok:false,status:429})),/429/);
  assert.equal(sourceState(null,now,true),'unavailable');
  assert.equal(sourceState(example(now).traffic,now),'demo');
+});
+test('station and route groups preserve respective active/planned alerts without overlap',()=>{
+ const input=[{id:'active-local',local:true,active:true},{id:'active-route',local:false,active:true},{id:'planned-local',local:true,active:false},{id:'planned-route',local:false,active:false}];
+ const groups=groupSubwayAlerts(input);
+ assert.deepEqual(groups.station.map(a=>a.id),['active-local','planned-local']);
+ assert.deepEqual(groups.route.map(a=>a.id),['active-route','planned-route']);
+ assert.deepEqual(groupSubwayAlerts([]),{station:[],route:[]});
+});
+test('an empty sensor response and a later request failure are distinct',()=>{
+ const blank={kind:'traffic',stamp:null,items:[]};
+ assert.equal(sourceState(blank,now),'no-data');
+ assert.equal(sourceState(blank,now,true),'unavailable');
+ assert.equal(sourceState({kind:'traffic',stamp:now-60000,items:[]},now,true),'stale');
 });

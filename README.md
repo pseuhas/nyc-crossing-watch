@@ -31,5 +31,5 @@ Subway is stale after five minutes, road observations after 20 minutes. Last goo
 ## Demo walkthrough
 
 1. Open the live page and show the two independent source badges.
-2. Toggle **Show island alerts only** to compare station-level and route-wide F/M context; use live data when available. If needed, switch explicitly to fictional demo mode, not a staged “live” view.
+2. Read the station alerts and F/M route context in separate, always-visible groups; use live data when available. If needed, switch explicitly to fictional demo mode, not a staged “live” view.
 3. Scroll to agency links and the Queensboro-vs-Roosevelt-Island-Bridge distinction. Traffic mileage/speeds (where sensor rows exist) are link measurements; if absent, show the honest no-readings state.
