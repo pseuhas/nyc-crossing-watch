@@ -15,6 +15,10 @@ jobs:
         with:
           node-version: 24
       - run: npm test
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: test
@@ -30,10 +34,5 @@ jobs:
       name: github-pages
       url: ${{ steps.release.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: public
       - uses: actions/deploy-pages@v4
         id: release
