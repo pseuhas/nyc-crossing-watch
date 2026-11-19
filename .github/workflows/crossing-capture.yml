@@ -1,0 +1,48 @@
+name: Record Crossing Watch production walkthrough
+on:
+  push:
+    branches: [crossing-production-capture]
+    paths: ['.github/workflows/crossing-capture.yml']
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+          if ! command -v ffmpeg; then sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; fi
+      - run: |
+          curl -fsS --retry 10 --retry-all-errors --retry-delay 5 --max-time 10 https://pseuhas.github.io/nyc-crossing-watch/ | grep -Fq 'Crossing Watch'
+          mkdir -p recordings
+          cat > capture.mjs <<'JS'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch();
+          const context = await browser.newContext({viewport:{width:1280,height:720},recordVideo:{dir:'recordings',size:{width:1280,height:720}},reducedMotion:'reduce'});
+          const page = await context.newPage();
+          const hold = ms => new Promise(resolve => setTimeout(resolve, ms));
+          try {
+            const r = await page.goto('https://pseuhas.github.io/nyc-crossing-watch/',{timeout:20000});
+            if (!r?.ok() || !/Crossing Watch/.test(await page.title())) throw Error('Production site not ready');
+            await page.waitForFunction(()=>['subway-state','traffic-state'].every(id=>!/^Loading/i.test(document.getElementById(id)?.textContent||'')), {timeout:20000});
+            await hold(3000);
+            await page.locator('#local').scrollIntoViewIfNeeded();
+            await hold(2300);
+            await page.locator('#local').uncheck();
+            await hold(4000);
+            await page.getByRole('heading',{name:'Other ways to cross'}).scrollIntoViewIfNeeded();
+            await hold(4600);
+          } finally { await context.close(); await browser.close(); }
+          JS
+          node capture.mjs
+          ffmpeg -hide_banner -loglevel error -y -i recordings/*.webm -vf "scale=1152:648,pad=1280:800:64:80:color=0x101820,drawtext=font=DejaVuSans:text='CROSSING WATCH':fontcolor=white:fontsize=28:x=64:y=20,drawtext=font=DejaVuSans:text='EAST RIVER   /   CHECK SUBWAY ALERTS AND OFFICIAL CROSSING OPTIONS':fontcolor=0x78E1D8:fontsize=17:x=64:y=755,drawtext=font=DejaVuSans:text='PRODUCTION':fontcolor=0x78E1D8:fontsize=17:x=w-tw-64:y=30" -vcodec libx264 -pix_fmt yuv420p -movflags +faststart -an recordings/crossing-watch.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crossing-watch-production
+          path: recordings/crossing-watch.mp4
+          retention-days: 7
