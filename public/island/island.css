@@ -33,3 +33,24 @@
   .seg label:has(input:checked) { border-color: Highlight; }
   .seg label:has(input:focus-visible) { outline-color: Highlight; }
 }
+
+/* Keep long operator labels from squeezing descriptions on narrow phones. */
+@media (max-width: 400px) {
+  .routes article {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    align-items: start;
+    column-gap: .55rem;
+    row-gap: .125rem;
+    padding-block: .55rem .15rem;
+  }
+  .routes article > .route-icon { align-self: start; }
+  .routes article > a {
+    grid-column: 2;
+    justify-self: start;
+    text-align: left;
+  }
+  .routes article p a { justify-items: start; text-align: left; }
+  .seg { gap: .25rem; }
+  .seg label { padding-inline: .4rem; gap: .25rem; }
+  .seg input { margin-inline: 0; }
+}
