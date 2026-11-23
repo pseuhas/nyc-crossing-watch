@@ -1,0 +1,50 @@
+name: Isolated Island review browser QA
+on:
+  push:
+    branches: [qa/roosevelt-island-holiday-fixtures]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Require exact draft code and only the two QA additions
+        run: |
+          ref=7ac4e0869975b08eb9ba35280dbf6ddecd7d0ce5
+          test "$(git rev-parse HEAD^)" = "$ref"
+          printf '%s\n' .github/workflows/island-review-browser.yml qa/island-browser.mjs > "$RUNNER_TEMP/expected"
+          git diff --name-only "$ref" HEAD | sort > "$RUNNER_TEMP/actual"
+          diff -u "$RUNNER_TEMP/expected" "$RUNNER_TEMP/actual"
+          git diff --exit-code "$ref" HEAD -- public scripts test package.json .github/workflows/pages.yml
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.11.1
+      - name: Install official Playwright and its pinned Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/island-qa" --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/island-qa/node_modules/.bin/playwright" install --with-deps chromium
+          cp qa/island-browser.mjs "$RUNNER_TEMP/island-qa/island-browser.mjs"
+      - name: Render fixture states against the exact preview runner
+        run: |
+          mkdir -p "$RUNNER_TEMP/island-render"
+          node scripts/serve.mjs > "$RUNNER_TEMP/island-render/server.log" 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          curl --retry 10 --retry-connrefused --retry-delay 1 --max-time 2 -fsS http://127.0.0.1:4173/island/ > /dev/null
+          ARTIFACT_DIR="$RUNNER_TEMP/island-render" node "$RUNNER_TEMP/island-qa/island-browser.mjs" 2>&1 | tee "$RUNNER_TEMP/island-render/browser.log"
+      - name: Upload only QA screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: island-holiday-qa-exact-draft
+          path: ${{ runner.temp }}/island-render/
+          if-no-files-found: warn
+          retention-days: 3
