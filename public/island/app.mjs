@@ -3,6 +3,7 @@ import {fetchTides} from './tide.mjs';
 import {compareTrips} from './decision.mjs';
 import {fetchQ102Alerts} from './mta-q102.mjs';
 import {tramOverhaulCopy} from './tram-advisory.mjs';
+import {holidaySchedule} from './holiday-schedule.mjs';
 const $=id=>document.getElementById(id);
 const demo=new URLSearchParams(location.search).get('demo')==='1';
 const clock=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York', weekday:'short',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
@@ -86,10 +87,18 @@ if(demo){
  showExample('mid');
  for(const opt of document.querySelectorAll('input[name=origin]'))opt.addEventListener('change',()=>showExample(opt.value));
 }else{
- function renderTramAdvisory(){
-  const message=tramOverhaulCopy(Date.now());
+ function renderDatedAdvisories(wallNow){
+  const message=tramOverhaulCopy(wallNow);
   $('tram-advisory').hidden=!message;
   if(message)status('tram-advisory-message',message);
+  const holiday=holidaySchedule(wallNow);
+  $('subway-typical').hidden=holiday.overrideSubway;
+  $('holiday-subway').hidden=!holiday.subway;
+  $('holiday-q102').hidden=!holiday.q102;
+  status('holiday-subway-message',holiday.subway);
+  status('holiday-parade',holiday.parade);
+  status('holiday-q102-message',holiday.q102);
+  return holiday.nextAt;
  }
  const transitInterval=90000;
  const mtaCacheEnabled=document.documentElement?.dataset.mtaCache==='on';
@@ -103,9 +112,11 @@ if(demo){
  function refreshDueSources(){
   clearTimeout(timer);
   if(document.hidden)return;
-  renderTramAdvisory();
+  const wallNow=Date.now();
+  const boundary=renderDatedAdvisories(wallNow);
   const now=performance.now();
-  let nextDelay=Infinity;
+  const noticesDelay=Number.isFinite(boundary)?Math.max(1,boundary-wallNow):Infinity;
+  let nextDelay=noticesDelay;
   for(const source of sources){
    if(source.pending)continue;
    const delay=source.lastStart===null?0:source.interval-(now-source.lastStart);

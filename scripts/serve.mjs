@@ -1,7 +1,7 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 const files={'/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.mjs':'app.mjs','/core.mjs':'core.mjs'};
-for(const file of ['index.html','island.css','app.mjs','decision.mjs','mta-q102.mjs','tide.mjs','tram-advisory.mjs'])files['/island/'+file]='island/'+file;
+for(const file of ['index.html','island.css','app.mjs','decision.mjs','mta-q102.mjs','tide.mjs','tram-advisory.mjs','holiday-schedule.mjs'])files['/island/'+file]='island/'+file;
 files['/island/']='island/index.html';
 const types={html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',mjs:'text/javascript; charset=utf-8'};
 createServer(async(req,res)=>{
