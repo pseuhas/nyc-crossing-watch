@@ -1,4 +1,4 @@
-const MTA = 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fsubway-alerts.json';
+const MTA = new URL('./feeds/mta-subway.json', import.meta.url).href;
 const DOT = 'https://data.cityofnewyork.us/resource/i4gi-tjb9.json';
 export const MAX_AGE = {subway:5*60000,traffic:20*60000};
 export const LINKS = {
@@ -30,15 +30,20 @@ export function alertSnapshot(body,now=Date.now()){
   const informed=Array.isArray(a.informed_entity)?a.informed_entity:[];
   const affected=Array.isArray(x?.affected_stations)?x.affected_stations:[];
   const routes=[...new Set(informed.map(e=>e?.route_id).filter(e=>routeSet.has(e)))].sort();
+  // Fields in one selector are conjunctive: a line at another stop or a single trip
+  // does not constitute a route-wide notice. Direction 0 is a real restriction.
+  const lineWideRoutes=[...new Set(informed.filter(e=>routeSet.has(e?.route_id)
+   &&(!e.agency_id||e.agency_id==='MTASBWY')&&!e.stop_id&&!e.trip&&e.direction_id==null)
+   .map(e=>e.route_id))].sort();
   const local=[...affected,...informed].some(e=>localStop.test(e?.stop_id??''))
-    ||(routes.length>0&&/roosevelt\s+island/i.test(header+' '+desc));
+    ||(lineWideRoutes.length>0&&/roosevelt\s+island/i.test(header+' '+desc));
   if(!routes.length&&!local)continue;
   const periods=Array.isArray(a.active_period)?a.active_period:[];
   const active=!periods.length||periods.some(p=>overlaps(p,now,now+1));
   const soon=periods.map(p=>epoch(p?.start)).filter(t=>t>now&&t<=now+12*3600000).sort((a,b)=>a-b)[0];
   if(!active&&!soon)continue;
   const id=strip(ent.id,160)||header;
-  const item={id,title:header,description:desc,routes,local,active,startsAt:active?null:soon,kind:strip(x?.alert_type,80)||'Service alert'};
+  const item={id,title:header,description:desc,routes,lineWideRoutes,local,active,startsAt:active?null:soon,kind:strip(x?.alert_type,80)||'Service alert'};
   alerts.set(id,item);
  }
  const items=[...alerts.values()].sort((a,b)=>Number(b.active)-Number(a.active)||Number(b.local)-Number(a.local)||(a.startsAt??0)-(b.startsAt??0)||a.id.localeCompare(b.id));
@@ -87,7 +92,7 @@ export function roadSnapshot(body,now=Date.now()){
 }
 export async function fetchSource(kind,now=Date.now(),fetcher=fetch){
  const url=kind==='subway'?MTA:roadQuery(now);
- const r=await fetcher(url,{credentials:'omit',cache:'no-cache',signal:AbortSignal.timeout(12000)});
+ const r=await fetcher(url,{credentials:'omit',cache:'no-cache',...(kind==='subway'?{redirect:'error'}:{}),signal:AbortSignal.timeout(12000)});
  if(!r.ok)throw new Error('Source HTTP '+r.status);
  const body=await r.json();
  return kind==='subway'?alertSnapshot(body,now):roadSnapshot(body,now);

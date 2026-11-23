@@ -1,6 +1,7 @@
 import {fetchSource,sourceState,example,groupSubwayAlerts} from './core.mjs';
 const get=id=>document.getElementById(id);
 const mode=new URLSearchParams(location.search).get('demo')==='1';
+const mtaCacheEnabled=document.documentElement?.dataset.mtaCache==='on';
 const refresh=get('refresh');
 const clock=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
 const sample=example();
@@ -8,7 +9,7 @@ const cards={subway:{data:null,error:false},traffic:{data:null,error:false}};
 let running=false,timer;
 const states={loading:'Loading',live:'Live feed',stale:'Stale · recheck',unavailable:'Unavailable','no-data':'No recent readings',demo:'Fictional demo'};
 const empty={
- subway:{loading:'Checking the MTA service feed.',unavailable:'The MTA feed could not be loaded. Check official alerts before you travel.'},
+ subway:{loading:'Checking the MTA service feed.',unavailable:'MTA notices aren’t available here. Check official alerts before you travel.'},
  traffic:{loading:'Checking the NYC DOT speed feed.',unavailable:'The traffic feed could not be loaded. Use the official 511NY map to check conditions.','no-data':'NYC DOT returned no usable observations for the selected corridor in the past hour. Missing sensors or readings do not mean roads are clear.'}
 };
 function node(parent,tag,content,cls){const x=document.createElement(tag);if(cls)x.className=cls;x.textContent=content;parent.append(x);return x;}
@@ -16,7 +17,12 @@ function render(kind){
  const data=mode?sample[kind]:cards[kind].data;
  const state=sourceState(data,Date.now(),cards[kind].error);
  const badge=get(kind+'-state'),out=get(kind+'-body');
- if(badge.textContent!==states[state])badge.textContent=states[state];
+ if(kind==='subway'&&!mode&&!mtaCacheEnabled){
+  badge.textContent='Official link';badge.dataset.state='unavailable';
+  out.replaceChildren();node(out,'p','Open MTA for current subway alerts.','content-line');return;
+ }
+ const label=kind==='subway'&&state==='live'&&Date.now()-data.stamp>60000?'May be delayed':states[state];
+ if(badge.textContent!==label)badge.textContent=label;
  badge.dataset.state=state;
  out.replaceChildren();
  if(empty[kind][state]){node(out,'p',empty[kind][state],'content-line');return;}
@@ -24,6 +30,7 @@ function render(kind){
  if(state==='demo')node(out,'p','Sample readings only. Do not use these values to plan travel.','content-line');
  else node(out,'p','Latest source timestamp: '+clock.format(data.stamp)+(state==='stale'?'. This view may be outdated.':'.'),'content-line');
  if(kind==='subway'){
+  if(state!=='demo'&&Date.now()-data.stamp>60000)node(out,'p','MTA data may not be real time; check the official source.','content-line');
   const groups=groupSubwayAlerts(data.items);
   const sections=[
     ['Roosevelt Island station',groups.station,'No matching station-specific alerts reported for the next 12 hours.'],
@@ -57,7 +64,7 @@ async function reload(){
  clearTimeout(timer);
  running=true;refresh.disabled=true;
  const now=Date.now();
- await Promise.all(Object.keys(cards).map(async kind=>{
+ await Promise.all(Object.keys(cards).filter(kind=>kind!=='subway'||mtaCacheEnabled).map(async kind=>{
   try{cards[kind].data=await fetchSource(kind,now);cards[kind].error=false;}
   catch{cards[kind].error=true;}
   render(kind);
