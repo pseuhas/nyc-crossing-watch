@@ -1,0 +1,87 @@
+import assert from 'node:assert/strict';
+import {resolve} from 'node:path';
+import {chromium} from 'playwright';
+
+const base = 'http://127.0.0.1:4173';
+const artifacts = process.env.ARTIFACT_DIR;
+assert(artifacts,'ARTIFACT_DIR is required');
+const bound = Date.parse('2026-11-23T14:00:00Z');
+const predictions = {
+  predictions: [
+    {t:'2026-11-23 16:00',v:'4.20',type:'H'},
+    {t:'2026-11-23 22:00',v:'0.80',type:'L'}
+  ]
+};
+const browser = await chromium.launch();
+const screens = [320,360,390];
+try {
+  for (const width of screens) {
+    for (const state of ['official-links','noaa-failure','fictional-demo']) {
+      const requests=[], errors=[], unexpected=[];
+      const context = await browser.newContext({
+        viewport:{width,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,
+        reducedMotion:'reduce',timezoneId:'America/New_York',serviceWorkers:'block',
+      });
+      const page = await context.newPage();
+      page.on('pageerror', error => errors.push(error.message));
+      await page.clock.setFixedTime(bound);
+      await context.route('**/*', async route => {
+        const url = new URL(route.request().url());
+        requests.push(url.href);
+        if (url.origin === base) return route.continue();
+        if (url.origin === 'https://api.tidesandcurrents.noaa.gov') {
+          assert.equal(url.searchParams.get('station'),'8518687');
+          assert.equal(url.searchParams.get('product'),'predictions');
+          assert.equal(url.searchParams.get('datum'),'MLLW');
+          return state === 'noaa-failure'
+            ? route.fulfill({status:503,headers:{'access-control-allow-origin':'*'},json:{error:'fixture 503'}})
+            : route.fulfill({status:200,headers:{'access-control-allow-origin':'*'},json:predictions});
+        }
+        unexpected.push(url.href);
+        return route.abort();
+      });
+      try {
+        await page.goto(base+'/island/'+(state==='fictional-demo'?'?demo=1':''),{waitUntil:'load'});
+        await page.getByRole('heading',{name:/Roosevelt Island now/i}).waitFor();
+        if (state==='fictional-demo') {
+          await page.getByText('FICTIONAL SAMPLE',{exact:true}).waitFor();
+          for (const name of ['North','Mid-island','South']) {
+            const option = page.getByRole('radio',{name});
+            await option.check();
+            assert(await option.isChecked(),name+' must be selected');
+            assert.match(await page.locator('#rationale').textContent(),/Fictional example.+not travel advice/);
+          }
+          const before=await page.locator('input[name=origin]:checked').getAttribute('value');
+          await page.locator('input[name=origin]:checked').focus();
+          await page.keyboard.press('ArrowLeft');
+          assert.notEqual(await page.locator('input[name=origin]:checked').getAttribute('value'),before,'native radio keyboard selection');
+          assert.deepEqual(requests.filter(url=>!url.startsWith(base+'/')),[]);
+        } else {
+          await page.getByRole('link',{name:'MTA alerts',exact:true}).waitFor();
+          assert.match(await page.locator('#subway-detail').textContent(),/Open MTA for current subway alerts/);
+          assert.match(await page.locator('#q102-detail').textContent(),/Open MTA Bus Time/);
+          const expected=state==='noaa-failure'?/Predictions unavailable here/:/High .*4\.2 ft MLLW.*Low .*0\.8 ft MLLW/;
+          await page.locator('#tides').filter({hasText:expected}).waitFor();
+          assert.equal(requests.filter(url=>url.startsWith('https://api.tidesandcurrents.noaa.gov/')).length,1);
+        }
+        assert(!requests.some(url=>/\/feeds\/mta-|https:\/\/[^/]*mta\.info/.test(url)),'no MTA fetch in reviewed configuration');
+        assert.deepEqual(unexpected,[]);
+        assert.deepEqual(errors,[]);
+        const size = await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth,reduce:matchMedia('(prefers-reduced-motion: reduce)').matches}));
+        assert(size.reduce);
+        assert.equal(size.viewport,width,'the mobile viewport must not scale wider to fit overflowing content');
+        assert(size.scroll<=size.viewport,`horizontal overflow at ${width}: ${JSON.stringify(size)}`);
+        await page.screenshot({path:resolve(artifacts,`island-${width}-${state}.png`),fullPage:true,animations:'disabled'});
+        console.log(`PASS ${width}px ${state}, viewport ${size.viewport}px, scroll ${size.scroll}px`);
+      } catch(error) {
+        await page.screenshot({path:resolve(artifacts,`FAIL-island-${width}-${state}.png`),fullPage:true,animations:'disabled'}).catch(()=>{});
+        console.error({width,state,requests,unexpected,errors});
+        throw error;
+      } finally {
+        await context.close();
+      }
+    }
+  }
+} finally {
+  await browser.close();
+}
