@@ -1,6 +1,6 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://api-endpoint.mta.info https://data.cityofnewyork.us 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<html lang="en" data-mta-cache="off"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://data.cityofnewyork.us 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
 <title>Crossing Watch | Roosevelt Island &amp; Queensboro</title><meta name="description" content="A live Roosevelt Island and Queensboro crossing dashboard."><link rel="stylesheet" href="./styles.css"></head><body>
 <main><header class="mast"><a href="./">CW <span>Crossing Watch</span></a><span>NYC / EAST RIVER</span></header>
 <section class="hero"><div class="hero-body"><p class="eyebrow">ROOSEVELT ISLAND · QUEENSBORO</p><h1>Cross the<br>East River.</h1><p>Check Roosevelt Island station alerts, what’s happening on the F and M, and the official schedules for the alternatives.</p></div>
@@ -12,7 +12,7 @@
 </nav>
 <section class="toolbar" aria-label="Page controls"><p><strong>How to read it</strong> · Station alerts and road sensors have separate timestamps.</p><button id="refresh" type="button">Refresh feeds</button><a id="demo-link" href="?demo=1">Try sample data</a></section>
 <div class="grid">
-<section class="panel" aria-labelledby="subway-title"><div class="panel-head"><div><p class="eyebrow">MTA SUBWAY</p><h2 id="subway-title">Subway alerts</h2></div><div class="badge" id="subway-state" role="status">Loading</div></div>
+<section class="panel" aria-labelledby="subway-title"><div class="panel-head"><div><p class="eyebrow">MTA SUBWAY</p><h2 id="subway-title">Subway alerts</h2></div><div class="badge" id="subway-state" role="status">Official link</div></div>
 <p class="caption">Roosevelt Island station alerts plus route-wide context for <span class="route">F</span> and <span class="route">M</span>. Route-wide alerts may not affect the island.</p><div id="subway-body"></div><a class="source" href="https://www.mta.info/alerts">Official MTA alerts ↗</a></section>
 <section class="panel" aria-labelledby="traffic-title"><div class="panel-head"><div><p class="eyebrow">NYC DOT</p><h2 id="traffic-title">Road sensors</h2></div><div class="badge" id="traffic-state" role="status">Loading</div></div>
 <p class="caption">Nearby Queensboro and Queens–Midtown Tunnel segments when reported. These are sensor-link measurements, not end-to-end crossing times.</p><div id="traffic-body"></div><a class="source" href="https://data.cityofnewyork.us/d/i4gi-tjb9">Traffic speed dataset ↗</a></section>

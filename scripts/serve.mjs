@@ -1,11 +1,14 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 const files={'/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.mjs':'app.mjs','/core.mjs':'core.mjs'};
+for(const file of ['index.html','island.css','app.mjs','decision.mjs','mta-q102.mjs','tide.mjs','tram-advisory.mjs'])files['/island/'+file]='island/'+file;
+files['/island/']='island/index.html';
 const types={html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',mjs:'text/javascript; charset=utf-8'};
 createServer(async(req,res)=>{
  try{
   const p=new URL(req.url,'http://localhost').pathname,file=Object.hasOwn(files,p)?files[p]:null;
   if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405,{Allow:'GET, HEAD'}).end();return;}
+  if(p==='/island'){res.writeHead(308,{Location:'/island/'+new URL(req.url,'http://localhost').search}).end();return;}
   if(!file){res.writeHead(404).end('Not found');return;}
   const body=await readFile(new URL('../public/'+file,import.meta.url));
   res.writeHead(200,{'Content-Type':types[file.split('.').at(-1)],'X-Content-Type-Options':'nosniff'}).end(req.method==='GET'?body:undefined);

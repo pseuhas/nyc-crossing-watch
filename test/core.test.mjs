@@ -37,7 +37,7 @@ test('query scopes fixed columns/corridor/hour and bounds response size',()=>{
  assert.equal(u.searchParams.get('$limit'),'600');
 });
 test('network contracts use omitted credentials and propagate vendor failure',async()=>{
- const mock=async(url,options)=>{assert.equal(options.credentials,'omit');assert.ok(options.signal);assert.match(url,/mta\.info/);return {ok:true,json:async()=>({header:{timestamp:sec},entity:[]})};};
+ const mock=async(url,options)=>{assert.equal(options.credentials,'omit');assert.ok(options.signal);assert.equal(url,new URL('../public/feeds/mta-subway.json',import.meta.url).href);assert.equal(options.redirect,'error');return {ok:true,json:async()=>({header:{timestamp:sec},entity:[]})};};
  assert.equal((await fetchSource('subway',now,mock)).stamp,now);
  await assert.rejects(fetchSource('traffic',now,async()=>({ok:false,status:429})),/429/);
  assert.equal(sourceState(null,now,true),'unavailable');
