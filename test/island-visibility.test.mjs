@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+import { holidaySchedule } from '../public/island/holiday-schedule.mjs';
 import { tramOverhaulCopy } from '../public/island/tram-advisory.mjs';
 import { groupSubwayAlerts } from '../public/core.mjs';
 
@@ -15,7 +16,7 @@ function harness(hidden=false){
  const request=name=>()=>{calls.push(name);return new Promise(resolve=>pending.push(resolve));};
  const document={documentElement:{dataset:{mtaCache:'on'}},hidden,addEventListener(type,callback){assert.equal(type,'visibilitychange');visibility=callback;}};
  runInNewContext(scheduling,{
-  document,status(){},renderTramAdvisory(){},performance:{now:()=>now},subway:request('subway'),q102:request('q102'),tides:request('tides'),
+  document,status(){},renderDatedAdvisories(){},performance:{now:()=>now},subway:request('subway'),q102:request('q102'),tides:request('tides'),
   setTimeout(callback,delay){assert.ok(delay>0);timer={callback,at:now+delay};return timer;},
   clearTimeout(previous){if(previous===timer)timer=undefined;},
  });
@@ -55,7 +56,7 @@ test('a Q102 failure during visibility catch-up clears its old stamp without blo
  const calls=[];
  const document={documentElement:{dataset:{mtaCache:'on'}},hidden:false,getElementById,addEventListener(type,handler){assert.equal(type,'visibilitychange');visibility=handler;}};
  runInNewContext(app.replace(/^import .+;$/gm,''),{
-  URLSearchParams,location:{search:''},document,tramOverhaulCopy,matchMedia:()=>({matches:false}),
+  URLSearchParams,location:{search:''},document,tramOverhaulCopy,holidaySchedule,matchMedia:()=>({matches:false}),
   performance:{now:()=>elapsed},Date:class extends Date{static now(){return initial+elapsed;}},
   setTimeout:()=>1,clearTimeout(){},sourceState:()=> 'live',groupSubwayAlerts,
   async fetchSource(){calls.push('subway');return {items:[{active:true,local:true,title:fail?'New subway notice':'Initial subway notice'}]};},

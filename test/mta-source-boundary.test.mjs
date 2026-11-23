@@ -5,6 +5,8 @@ import test from 'node:test';
 import {fetchSource, groupSubwayAlerts, sourceState} from '../public/core.mjs';
 import {fetchQ102Alerts} from '../public/island/mta-q102.mjs';
 
+import {holidaySchedule} from '../public/island/holiday-schedule.mjs';
+
 const publicPath = new URL('../public/', import.meta.url);
 const html = pathname => readFileSync(new URL(pathname, publicPath), 'utf8');
 const now = Date.UTC(2026, 10, 23, 12);
@@ -59,7 +61,7 @@ test('default links-only mode makes no subway or bus request and leaves tide fet
   };
   const document={documentElement:{dataset:{mtaCache:'off'}},hidden:false,getElementById,addEventListener(){}};
   runInNewContext(source,{
-    URLSearchParams,location:{search:''},document,tramOverhaulCopy:()=>null,matchMedia:()=>({matches:false}),
+    URLSearchParams,location:{search:''},document,tramOverhaulCopy:()=>null,holidaySchedule,matchMedia:()=>({matches:false}),
     performance:{now:()=>0},setTimeout:()=>1,clearTimeout(){},
     async fetchSource(){calls.push('subway');},async fetchQ102Alerts(){calls.push('bus');},
     async fetchTides(){calls.push('tides');return {};},
