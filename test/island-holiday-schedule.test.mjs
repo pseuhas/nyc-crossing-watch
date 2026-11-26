@@ -14,13 +14,15 @@ test('dated planning starts at New York midnight, not UTC date or annual recurre
   assert.equal(holidaySchedule(NaN).nextAt,null);
 });
 
-test('Thursday replaces typical weekday copy, parade window is Manhattan-only, Friday is Q102 only', () => {
+test('Thursday uses F service without the canceled parade notice; Friday is Q102 only', () => {
   assert.equal(at('2026-11-26T04:59:59.999Z').overrideSubway,false);
   const thu=at('2026-11-26T05:00:00Z');
   assert.equal(thu.overrideSubway,true);
-  assert.equal(thu.nextAt,Date.parse('2026-11-26T09:00:00Z'));
-  assert.match(at('2026-11-26T09:00:00Z').parade,/57 St–6 Av in Manhattan both ways, 4–11 a.m. ET/);
-  assert.match(at('2026-11-26T15:59:59.999Z').parade,/Planned parade change/);
+  assert.equal(thu.nextAt,Date.parse('2026-11-27T05:00:00Z'));
+  assert.equal(at('2026-11-25T20:00:00Z').parade,'');
+  assert.equal(at('2026-11-26T09:00:00Z').parade,'');
+  assert.equal(at('2026-11-26T15:59:59.999Z').parade,'');
+  assert.equal(at('2026-11-28T13:30:00Z').parade,'');
   assert.equal(at('2026-11-26T16:00:00Z').parade,'');
   assert.equal(at('2026-11-27T04:59:59.999Z').overrideSubway,true);
   const fri=at('2026-11-27T05:00:00Z');
